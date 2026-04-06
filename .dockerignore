@@ -1,0 +1,8 @@
+venv/
+src/venv/
+.git/
+__pycache__/
+*.pyc
+.env
+.mypy_cache/
+*.md

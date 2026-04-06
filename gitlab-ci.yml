@@ -1,0 +1,104 @@
+# Только авторепорт: отчёт в Confluence, уведомление в бот, отправка в сервис хранения (clinic-reports).
+# Используется пайплайном нагрузочного теста (tests/load). Этапы run/provisioning/start/stop определены в tests/load.
+
+stages:
+  - report
+
+.runimg_local:
+  image: $IMAGE_DOCKER
+  services:
+    - name: $IMAGE_DOCKER_DIND
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_TLS_CERTDIR: ''
+    SERVICE_PORT_2376_TCP_PORT: 2375
+  before_script:
+    - wget -q -O /usr/local/bin/docker-compose $DOCKER_COMPOSE_URL
+    - chmod +x /usr/local/bin/docker-compose
+    - until wget http://docker:2375/_ping 1> /dev/null 2>&1; do echo "Waiting for Docker daemon"; sleep 5; done
+  script:
+    - docker --version
+
+autoreport:
+  stage: report
+  extends: .runimg_local
+  image: $IMAGE_DOCKER
+  tags: [$CI_RUNNER_TAG]
+  timeout: 2h
+  variables:
+    RUNNER_AFTER_SCRIPT_TIMEOUT: 60m
+    JMX_PATH: $JMX_PATH
+    UI_VERSION: $UI_VERSION
+    CMS_VERSION: $CMS_VERSION
+    DB_VERSION: $DB_VERSION
+    TEST_DESC: $TEST_DESC
+    DOCKER_HOST: unix:///var/run/docker.sock
+    LOAD_PLAN: $LOAD_PLAN
+    TESTNAME: $TESTNAME
+    TEST_TYPE: $TEST_TYPE
+    BOT_ID: $BOT_ID
+    CHAT_ID: $CHAT_ID
+    SECRET_KEY: $SECRET_KEY
+    CTS_HOST: $CTS_HOST
+    APP_VERSIONS: $APP_VERSIONS
+    CONFLUENCE_HOST: $CONFLUENCE_HOST
+    CONFLUENCE_SPACE: $CONFLUENCE_SPACE
+    CONFLUENCE_TOKEN: $CONFLUENCE_TOKEN
+    CONFLUENCE_PAGE: $CONFLUENCE_PAGE
+    CONFLUENCE_TITLE: $CONFLUENCE_TITLE
+    PARENT_PAGE: $PARENT_PAGE
+    CONFLUENCE_PARENT: $CONFLUENCE_PARENT
+    INFLUX_HOST: $INFLUX_HOST
+    INFLUX_PORT: $INFLUX_PORT
+    INFLUX_ORG: $INFLUX_ORG
+    INFLUX_BUCKET: $INFLUX_BUCKET
+    INFLUX_DB: $INFLUX_DB
+    INFLUX_URL: $INFLUX_URL
+    INFLUX_TOKEN: $INFLUX_TOKEN
+    VAULT_TOKEN: $VAULT_TOKEN
+    ARGO_URL: $ARGO_URL
+    ARGO_TOKEN: $ARGO_TOKEN
+    GRAFANA_HOST: $GRAFANA_HOST
+    GRAFANA_USER: $GRAFANA_USER
+    GRAFANA_SNAPSHOT_NODEJS: $GRAFANA_SNAPSHOT_NODEJS
+    GRAFANA_SNAPSHOT_JMETER: $GRAFANA_SNAPSHOT_JMETER
+    GRAFANA_SNAPSHOT_ELASTIC: $GRAFANA_SNAPSHOT_ELASTIC
+    GRAFANA_SNAPSHOT_PODS: $GRAFANA_SNAPSHOT_PODS
+    GRAFANA_SNAPSHOT_NODES: $GRAFANA_SNAPSHOT_NODES
+    GRAFANA_PASS: $GRAFANA_PASS
+    REPORT_URL: $REPORT_URL
+    CLINIC_REPORTS_URL: $CLINIC_REPORTS_URL
+    SERVICE: $SERVICE
+    CREATE_REPORT: $CREATE_REPORT
+    SEND_BOT_NOTIFICATION: $SEND_BOT_NOTIFICATION
+    SAVE_TO_STORAGE: $SAVE_TO_STORAGE
+    DOCKER_TLS_CERTDIR: ''
+    SERVICE_PORT_2376_TCP_PORT: 2375
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - wget -q -O /usr/local/bin/docker-compose $DOCKER_COMPOSE_URL
+    - chmod +x /usr/local/bin/docker-compose
+  script:
+    - echo "Run autoreport compose.."
+    - docker --version
+    - cd autoreport
+    - ls -la
+    - docker-compose --file docker-compose.yaml up --build
+  after_script:
+    - cd autoreport
+    - docker logs autoreport
+  needs:
+    - job: start_machines
+    - job: run
+      artifacts: true
+    - job: get_versions
+      artifacts: true
+  rules:
+    - if: $CREATE_REPORT == "True" || $SEND_BOT_NOTIFICATION == "True" || $SAVE_TO_STORAGE == "True"
+      when: always
+    - when: never
+  artifacts:
+    paths:
+      - "autoreport/error_snapshot_timeout.png"
+      - "autoreport/error_snapshot.png"

@@ -1,0 +1,60 @@
+services:
+  autoreport:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: autoreport:local
+    environment:
+      - UUID_TEST
+      - START_TEST
+      - LOAD_PLAN
+      - TESTNAME
+      - JMX_PATH
+      - UI_VERSION
+      - CMS_VERSION
+      - DB_VERSION
+      - TEST_DESC
+      - BOT_ID
+      - CHAT_ID
+      - SECRET_KEY
+      - CTS_HOST
+      - CONFLUENCE_HOST
+      - CONFLUENCE_SPACE
+      - CONFLUENCE_TOKEN
+      - CONFLUENCE_PAGE
+      - CONFLUENCE_TITLE
+      - CONFLUENCE_PARENT
+      - PARENT_PAGE
+      - INFLUX_HOST
+      - INFLUX_PORT
+      - INFLUX_ORG
+      - INFLUX_BUCKET
+      - INFLUX_DB
+      - INFLUX_URL
+      - INFLUX_TOKEN
+      - VAULT_TOKEN
+      - ARGO_URL
+      - ARGO_TOKEN
+      - GRAFANA_HOST
+      - GRAFANA_USER
+      - GRAFANA_SNAPSHOT_NODEJS
+      - GRAFANA_SNAPSHOT_JMETER
+      - GRAFANA_SNAPSHOT_ELASTIC
+      - GRAFANA_SNAPSHOT_PODS
+      - GRAFANA_SNAPSHOT_NODES
+      - GRAFANA_PASS
+      - REPORT_URL
+      - SERVICE
+      - TEST_TYPE
+      - APP_VERSIONS
+      - CLINIC_REPORTS_URL
+      - TAURUS_EXIT_CODE
+      - CREATE_REPORT
+      - SEND_BOT_NOTIFICATION
+      - SAVE_TO_STORAGE
+    container_name: autoreport
+    hostname: autoreport
+    volumes:
+      - "${PWD}:/app"
+    ports:
+      - 9200:9200
