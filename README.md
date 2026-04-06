@@ -2,12 +2,54 @@
 
 Service and tooling for **performance test reporting**: pull metrics from InfluxDB (InfluxQL or Flux), capture **Grafana** dashboard snapshots via Selenium, assemble an HTML report, and optionally publish to **Confluence**, **Markdown**, local HTML, or an external **report storage** HTTP API. Notifications can be sent through a JWT-protected chat bot integration.
 
+## What goes into the report
+
+### Aggregated metrics table and SLA highlighting
+
+Metrics for the run are read from **InfluxDB**, aggregated per operation and load step (RPM/RPS, percentiles, latency, errors, and similar fields from `src/analysis/`). The report embeds a **single summary table** of those values (styled HTML).
+
+Cells are **highlighted** when a numeric value breaks the response-time SLA: values **above 400 ms** get a salmon background (`highlight()` in `src/main.py`). Adjust the threshold there if your SLA differs.
+
+For `max_performance_search`, the tool also derives **max RPS** where all response times stay within that same **400 ms** budget (`src/analysis/max_rps.py`).
+
+### Load profile
+
+The report includes the **load profile** used for the test:
+
+- **JMX / script path** of the load scenario.
+- A **tabular load plan**: load step (% or target), ramp-up, and hold duration for each stage (`block_load_plan` / `block_mnt` in `src/web/template.py`).
+
+Together with objectives and methodology sections, this makes the applied profile visible in the final page.
+
+### Vault and Argo CD
+
+When `vault` and `argo` (plus `applications`) are present in the request:
+
+- **HashiCorp Vault** — for each configured secret path, the report pulls JSON and embeds a **sanitized** copy (sensitive keys masked) via `VaultClient` (`src/clients/vault_client.py`).
+- **Argo CD** — deployment metadata for the listed applications is fetched from the Argo API and rendered as an **HTML table** (requests/limits, replicas, environment blob, chart/version labels, etc.) via `ArgoAdapter` (`src/clients/argocd.py`).
+
+This gives a snapshot of **declared configuration** alongside runtime metrics.
+
+### Grafana snapshots by layer (app / backend / platform)
+
+Selenium logs into Grafana and captures **dashboard snapshots** for the test time window. You map each URL in the request; typical **tiers** line up as follows:
+
+| Tier | What it represents in code | Grafana template field (request) |
+| ---- | -------------------------- | -------------------------------- |
+| **Application / load & business metrics** | JMeter (or equivalent) business view: throughput, response times | `snapshot_template_jmeter` |
+| **Backend services** | e.g. Node.js workload panels, request-time / APM-style analytics | `snapshot_template_nodejs`, `snapshot_template_elastic` |
+| **Platform / capacity** | Kubernetes **pod** and **node** utilization | `snapshot_template_pods`, `snapshot_template_nodes` |
+
+Each block adds snapshot links plus tabbed/embedded chart sections in Confluence-style output (`create_snapshots_block` in `src/main.py`).
+
+**Database deep dives:** Oracle / PostgreSQL **AWR** attachments are supported in code but currently **commented out** in the main flow; enable that block if you want DB-level reports in the same document.
+
 ## Features
 
-- Build a structured report (objectives, methodology, metrics tables, Grafana snapshots, optional Argo CD / Vault configuration sections).
-- Compute **max RPS** for `max_performance_search` when all response times stay within **400 ms** (configurable logic in `src/analysis/max_rps.py`).
+- Build a structured report (objectives, conclusion template, methodology, **load profile**, **aggregated SLA-colored table**, multi-dashboard Grafana captures, **Vault** + **Argo CD** sections).
+- Compute **max RPS** for `max_performance_search` when all response times stay within **400 ms** (logic in `src/analysis/max_rps.py`).
 - Optional POST of run metadata to a compatible storage service (`CLINIC_REPORTS_URL`).
-- FastAPI entrypoint for on-demand report generation.
+- FastAPI entrypoint for on-demand report generation (`POST /report`).
 
 ## Requirements
 
